@@ -1,0 +1,46 @@
+version: '3.8'
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: devops-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: testdb
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    networks:
+      - devops-net
+
+  web:
+    image: php:7.4-apache
+    container_name: devops-web
+    volumes:
+      - ./app:/var/www/html
+    ports:
+      - "8081:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - devops-net
+
+  tester:
+    image: node:14-alpine
+    container_name: devops-tester
+    volumes:
+      - ./test:/usr/src/app
+    working_dir: /usr/src/app
+    entrypoint: ["/bin/sh", "run-tests.sh"]
+    depends_on:
+      - web
+    networks:
+      - devops-net
+
+networks:
+  devops-net:
+    driver: bridge
